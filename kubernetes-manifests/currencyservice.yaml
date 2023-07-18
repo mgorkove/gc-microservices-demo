@@ -54,7 +54,7 @@ spec:
           grpc:
             port: 7000
         livenessProbe:
-          grpc:
+            memory: 256Mi
             port: 7000
         resources:
             memory: 256Mi
