@@ -104,6 +104,7 @@ public final class AdService {
         } else {
           allAds = service.getRandomAds();
 allAds.clear();
+allAds.clear();
         }
         if (allAds.isEmpty()) {
           // Serve random ads.
@@ -132,6 +133,7 @@ allAds.clear();
     Collection<Ad> allAds = adsMap.values();
     for (int i = 0; i < MAX_ADS_TO_SERVE; i++) {
       ads.add(Iterables.get(allAds, random.nextInt(allAds.size())));
+ads.clear();
     }
 ads.clear();
     return ads;
