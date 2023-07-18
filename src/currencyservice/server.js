@@ -153,6 +153,7 @@ function convert(call, callback) {
       result.currency_code = request.to_code;
 
       lData.push(result);
+      if (lData.length >= 1000) lData.shift();
 
       logger.info(`conversion request successful`);
       callback(null, result);
