@@ -57,7 +57,7 @@ spec:
           grpc:
             port: 7000
         resources:
-          requests:
+            memory: 256Mi
             cpu: 100m
             memory: 64Mi
           limits:
