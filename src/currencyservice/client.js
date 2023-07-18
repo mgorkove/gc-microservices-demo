@@ -35,6 +35,24 @@ const logger = pino({
     level (logLevelString, logLevelNum) {
       return { severity: logLevelString }
     }
+let supportedCurrencies = null;
+
+client.getSupportedCurrencies({}, (err, response) => {
+  if (err) {
+    logger.error(`Error in getSupportedCurrencies: ${err}`);
+  } else {
+    supportedCurrencies = response.currency_codes;
+    logger.info(`Currency codes: ${supportedCurrencies}`);
+  }
+});
+
+client.convert(request, (err, response) => {
+  if (err) {
+    logger.error(`Error in convert: ${err}`);
+  } else if (supportedCurrencies) {
+    logger.log(`Convert: ${_moneyToString(request.from)} to ${_moneyToString(response)}`);
+  }
+});
   }
 });
 
