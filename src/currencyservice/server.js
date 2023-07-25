@@ -152,7 +152,6 @@ function convert(call, callback) {
       result.nanos = Math.floor(result.nanos);
       result.currency_code = request.to_code;
 
-      lData.push(result);
 
       logger.info(`conversion request successful`);
       callback(null, result);
