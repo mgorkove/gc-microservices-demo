@@ -123,10 +123,12 @@ function getSupportedCurrencies (call, callback) {
   });
 }
 
+const lData = [];
+
 /**
  * Converts between currencies
  */
-function convert (call, callback) {
+function convert(call, callback) {
   try {
     _getCurrencyData((data) => {
       const request = call.request;
@@ -149,6 +151,8 @@ function convert (call, callback) {
       result.units = Math.floor(result.units);
       result.nanos = Math.floor(result.nanos);
       result.currency_code = request.to_code;
+
+      lData.push(result);
 
       logger.info(`conversion request successful`);
       callback(null, result);
