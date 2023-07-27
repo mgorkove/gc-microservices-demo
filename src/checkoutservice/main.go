@@ -292,6 +292,17 @@ func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
 	return resp, nil
 }
 
+func (cs *checkoutService) chargeCard(ctx context.Context, amount *pb.Money, paymentInfo *pb.CreditCardInfo, orderIdData map[string]interface{}) (string, error) {
+	orderID := orderIdData["orderID"].(uuid.UUID)
+	paymentResp, err := pb.NewPaymentServiceClient(cs.paymentSvcConn).Charge(ctx, &pb.ChargeRequest{
+		Amount:     amount,
+		CreditCard: paymentInfo})
+	if err != nil {
+		return "", fmt.Errorf("could not charge the card: %+v", err)
+	}
+	return paymentResp.GetTransactionId(), nil
+}
+
 type orderPrep struct {
 	orderItems            []*pb.OrderItem
 	cartItems             []*pb.CartItem
@@ -377,17 +388,6 @@ func (cs *checkoutService) convertCurrency(ctx context.Context, from *pb.Money, 
 		return nil, fmt.Errorf("failed to convert currency: %+v", err)
 	}
 	return result, err
-}
-
-func (cs *checkoutService) chargeCard(ctx context.Context, amount *pb.Money, paymentInfo *pb.CreditCardInfo, orderIdData map[string]interface{}) (string, error) {
-	orderID := orderIdData["orderID"].(uuid.UUID)
-	paymentResp, err := pb.NewPaymentServiceClient(cs.paymentSvcConn).Charge(ctx, &pb.ChargeRequest{
-		Amount:     amount,
-		CreditCard: paymentInfo})
-	if err != nil {
-		return "", fmt.Errorf("could not charge the card: %+v", err)
-	}
-	return paymentResp.GetTransactionId(), nil
 }
 
 func (cs *checkoutService) sendOrderConfirmation(ctx context.Context, email string, order *pb.OrderResult) error {
