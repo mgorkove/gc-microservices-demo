@@ -61,6 +61,18 @@ func init() {
 	log.Out = os.Stdout
 }
 
+type OrderData struct {
+  OrderID       uuid.UUID
+  UserID        string
+  OrderTime     time.Time
+  CartItems     []*pb.CartItem
+  TotalCost     pb.Money
+  CostBreakdown struct {
+    Items    pb.Money
+    Shipping *pb.Money
+  }
+}
+
 type checkoutService struct {
 	productCatalogSvcAddr string
 	productCatalogSvcConn *grpc.ClientConn
@@ -234,16 +246,10 @@ func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
 		return nil, status.Errorf(codes.Internal, "failed to generate order uuid")
 	}
 
-	orderIdData["orderID"] = orderID
-	orderIdData["userID"] = req.UserId
-	orderIdData["orderTime"] = time.Now()
-
 	prep, err := cs.prepareOrderItemsAndShippingQuoteFromCart(ctx, req.UserId, req.UserCurrency, req.Address)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
-
-	orderIdData["cartItems"] = prep.cartItems
 
 	total := pb.Money{CurrencyCode: req.UserCurrency,
 		Units: 0,
@@ -254,15 +260,17 @@ func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
 		total = money.Must(money.Sum(total, multPrice))
 	}
 
-	orderIdData["totalCost"] = total
+	orderData := OrderData{
+	  OrderID:   orderID,
+	  UserID:    req.UserId,
+	  OrderTime: time.Now(),
+	  CartItems: prep.cartItems,
+	  TotalCost: total,
+	}
+	orderData.CostBreakdown.Items = total
+	orderData.CostBreakdown.Shipping = prep.shippingCostLocalized
 
-	// Store a detailed breakdown of the order's cost
-	costBreakdown := make(map[string]*pb.Money)
-	costBreakdown["items"] = total
-	costBreakdown["shipping"] = prep.shippingCostLocalized
-	orderIdData["costBreakdown"] = costBreakdown
-
-	txID, err := cs.chargeCard(ctx, &total, req.CreditCard, orderIdData)
+	txID, err := cs.chargeCard(ctx, &total, req.CreditCard, orderData)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to charge card: %+v", err)
 	}
@@ -292,8 +300,8 @@ func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
 	return resp, nil
 }
 
-func (cs *checkoutService) chargeCard(ctx context.Context, amount *pb.Money, paymentInfo *pb.CreditCardInfo, orderIdData map[string]interface{}) (string, error) {
-	orderID := orderIdData["orderID"].(uuid.UUID)
+func (cs *checkoutService) chargeCard(ctx context.Context, amount *pb.Money, paymentInfo *pb.CreditCardInfo, orderData OrderData) (string, error) {
+	orderID := orderData.orderID.(uuid.UUID)
 	paymentResp, err := pb.NewPaymentServiceClient(cs.paymentSvcConn).Charge(ctx, &pb.ChargeRequest{
 		Amount:     amount,
 		CreditCard: paymentInfo})
