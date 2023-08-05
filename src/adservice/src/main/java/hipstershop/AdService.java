@@ -38,6 +38,12 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+
 public final class AdService {
 
   private static final Logger logger = LogManager.getLogger(AdService.class);
@@ -124,15 +130,32 @@ public final class AdService {
     return adsMap.get(category);
   }
 
-  private static final Random random = new Random();
+  private static final String URL = "jdbc:postgresql://postgres-db.default.svc.cluster.local:5432/adsdb";
+  private static final int MAX_ADS_TO_SERVE = 10;
+  private Random random = new Random();
 
-  private List<Ad> getRandomAds() {
-    List<Ad> ads = new ArrayList<>(MAX_ADS_TO_SERVE);
-    Collection<Ad> allAds = adsMap.values();
-    for (int i = 0; i < MAX_ADS_TO_SERVE; i++) {
-      ads.add(Iterables.get(allAds, random.nextInt(allAds.size())));
-    }
-    return ads;
+  public List<Ad> getRandomAds() {
+      List<Ad> ads = new ArrayList<>(MAX_ADS_TO_SERVE);
+      try (Connection conn = DriverManager.getConnection(URL, POSTGRES_USER, POSTGRES_PASSWORD);
+           Statement stmt = conn.createStatement();
+           ResultSet rs = stmt.executeQuery("SELECT * FROM ads")) {
+
+          List<Ad> allAds = new ArrayList<>();
+          while (rs.next()) {
+              Ad ad = Ad.newBuilder()
+                      .setRedirectUrl(rs.getString("redirect_url"))
+                      .setText(rs.getString("text"))
+                      .build();
+              allAds.add(ad);
+          }
+
+          for (int i = 0; i < MAX_ADS_TO_SERVE && i < allAds.size(); i++) {
+              ads.add(allAds.get(random.nextInt(allAds.size())));
+          }
+      } catch (SQLException ex) {
+          ex.printStackTrace();
+      }
+      return ads;
   }
 
   private static AdService getInstance() {
